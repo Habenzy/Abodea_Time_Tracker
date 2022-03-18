@@ -1,9 +1,10 @@
+let tracking = false;
 let startTime = null;
 let ticketTab = null;
 let ticketWindow = null;
 let ticketId = null;
 let currentUserEmail = null;
-let visitedURLs = [];
+let visitedURLs = ["", ""];
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log(
@@ -18,16 +19,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tab.url.includes("https://app.hubspot.com") &&
     tab.url.includes("8266889") &&
     tab.url.includes("ticket") &&
-    !tab.url.includes("?") && //This was an attempt at preventing a time reset on note or email open, it was unsuccessful
-    //because it resets when it leaves AND WHEN IT COMES BACK
-    //I need to make sure the previous URL also didn't include the app identifiers and a question mark
+    !tab.url.includes("?") &&
     !(
       visitedURLs[visitedURLs.length - 2].includes("?") &&
       visitedURLs[visitedURLs.length - 2].includes("https://app.hubspot.com") &&
       visitedURLs[visitedURLs.length - 2].includes("8266889")
-    )//It FUCKING WORKED!!!!!!!!
-    //Now to apply it to the fancy version and see if that works.
+    )
   ) {
+    console.log("new ticket opened:", ticketId);
+    tracking = true;
     startTime = Date.now();
     ticketTab = tabId;
     ticketWindow = tab.windowId;
@@ -35,6 +35,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (!currentUserEmail) {
       getEmail(tab.id);
     }
+  } else if (
+    tracking &&
+    ticketTab === tabId &&
+    !tab.url.includes("https://app.hubspot.com/contacts/8266889/ticket/")
+  ) {
+    console.log("closing ticket:", ticketId);
+    tracking = false;
+    pushTime(ticketId, currentUserEmail);
   }
 });
 
@@ -53,6 +61,42 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   }
 });
 
+chrome.action.onClicked.addListener(function (tab) {
+  if (tracking) {
+    let timeStamp = Date.now();
+    let duration = timeStamp - startTime;
+    let mins = Math.floor(duration / 60000);
+    let secs = Math.floor(duration / 1000) % 60;
+
+    chrome.notifications.create(
+      "tracking",
+      {
+        iconUrl: "../../icons/full-icon_128.png",
+        type: "basic",
+        //contextMessage: 'Context message',
+        message:
+          "Tracked " +
+          mins +
+          " minutes and " +
+          secs +
+          " seconds for ticket #" +
+          ticketId,
+        title: "Time Tracked",
+      },
+      function (context) {
+        console.log("Last error:", chrome.runtime.lastError);
+      }
+    );
+  } else {
+    chrome.notifications.create("no ticket", {
+      iconUrl: "../../icons/full-icon_128.png",
+      type: "basic",
+      //contextMessage: 'Context message',
+      message: "No open tickets",
+    });
+  }
+});
+
 async function getEmail() {
   await chrome.identity.getProfileUserInfo(
     { accountStatus: "ANY" },
@@ -63,10 +107,11 @@ async function getEmail() {
 }
 
 function pushTime(ticketId, email) {
+  tracking = false;
   let end = Date.now();
   let duration = end - startTime;
-  let durationMins = Math.floor(duration / 1000 / 60);
-  let durationSecs = (duration / 1000) % 60;
+  let durationMins = Math.floor(duration / 60000);
+  let durationSecs = Math.floor(duration / 1000) % 60;
   let durationMS = duration - durationMins * 60000 - durationSecs * 1000;
   console.log("submitting new log:");
   console.log("start:", startTime);
