@@ -2,7 +2,7 @@
   "name": "Abodea Ticket Time Tracker",
   "version": "3.0.1",
   "manifest_version": 3,
-  "description": "A bare bones HubSpot Ticket Time Tracker Chrome Extension created by good people at Impulse Creative.",
+  "description": "A HubSpot Ticket Time Tracker Chrome Extension created by good people at Impulse Creative.",
   "homepage_url": "https://www.impulsecreative.com",
   "icons": {
     "19": "icons/full-icon_19.png",
