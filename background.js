@@ -10,7 +10,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log(
     "ON UPDATED ----------------------------------" + changeInfo.status
   );
-  console.log("tabId:", tabId);
+
   visitedURLs.push(tab.url);
 
   if (
@@ -44,6 +44,22 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tracking = false;
     pushTime(ticketId, currentUserEmail);
   }
+
+  if (tracking && tabId === ticketTab) {
+    chrome.action.setIcon({
+      path: {
+        19: "/icons/full-icon_19.png",
+        48: "/icons/full-icon_48.png",
+      },
+    });
+  } else {
+    chrome.action.setIcon({
+      path: {
+        19: "/icons/empty-icon_19.png",
+        48: "/icons/empty-icon_48.png",
+      },
+    });
+  }
 });
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
@@ -63,6 +79,9 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 
 chrome.action.onClicked.addListener(function (tab) {
   if (tracking) {
+    chrome.windows.update(ticketWindow, { focused: true });
+    chrome.tabs.update(ticketTab, { selected: true });
+
     let timeStamp = Date.now();
     let duration = timeStamp - startTime;
     let mins = Math.floor(duration / 60000);
@@ -71,7 +90,7 @@ chrome.action.onClicked.addListener(function (tab) {
     chrome.notifications.create(
       "tracking",
       {
-        iconUrl: "../../icons/full-icon_128.png",
+        iconUrl: "/icons/full-icon_128.png",
         type: "basic",
         //contextMessage: 'Context message',
         message:
@@ -89,10 +108,11 @@ chrome.action.onClicked.addListener(function (tab) {
     );
   } else {
     chrome.notifications.create("no ticket", {
-      iconUrl: "../../icons/full-icon_128.png",
+      iconUrl: "/icons/full-icon_128.png",
       type: "basic",
       //contextMessage: 'Context message',
       message: "No open tickets",
+      title: "No Ticket",
     });
   }
 });
@@ -144,7 +164,7 @@ function pushTime(ticketId, email) {
           chrome.notifications.create(
             "end-" + tabId,
             {
-              iconUrl: "../../icons/full-icon_128.png",
+              iconUrl: "/icons/full-icon_128.png",
               type: "basic",
               //contextMessage: 'Context message',
               message:
@@ -180,7 +200,7 @@ function pushTime(ticketId, email) {
   chrome.notifications.create(
     "end",
     {
-      iconUrl: "../../icons/full-icon_128.png",
+      iconUrl: "/icons/full-icon_128.png",
       type: "basic",
       //contextMessage: 'Context message',
       message:
