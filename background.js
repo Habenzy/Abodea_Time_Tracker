@@ -6,14 +6,58 @@ let ticketId = null;
 let currentUserEmail = null;
 let visitedURLs = ["", ""];
 
+//Logic to keep service worker active indefinitely
+let lifeline;
+
+keepAlive();
+
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name === 'keepAlive') {
+    lifeline = port;
+    setTimeout(keepAliveForced, 295e3); // 5 minutes minus 5 seconds
+    port.onDisconnect.addListener(keepAliveForced);
+  }
+});
+
+function keepAliveForced() {
+  lifeline?.disconnect();
+  lifeline = null;
+  keepAlive();
+}
+
+async function keepAlive() {
+  if (lifeline) return;
+  for (const tab of await chrome.tabs.query({ url: '*://*/*' })) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        function: () => chrome.runtime.connect({ name: 'keepAlive' }),
+        // `function` will become `func` in Chrome 93+
+      });
+      chrome.tabs.onUpdated.removeListener(retryOnTabUpdate);
+      return;
+    } catch (e) {}
+  }
+  chrome.tabs.onUpdated.addListener(retryOnTabUpdate);
+}
+
+async function retryOnTabUpdate(tabId, info, tab) {
+  if (info.url && /^(file|https?):/.test(info.url)) {
+    keepAlive();
+  }
+}
+
+//----------------Event Listeners for tracking---------------
+
+//Any time a tab is opened, or navigated to
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   console.log(
     "ON UPDATED ----------------------------------" + changeInfo.status
   );
-
+  //Track all previously visited URLs
   visitedURLs.push(tab.url);
 
-  if (
+  if (//Check that there is no currently active ticket, and we are not just changing url within the same ticket
     !startTime &&
     tab.url &&
     tab.url.includes("https://app.hubspot.com") &&
@@ -26,6 +70,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       visitedURLs[visitedURLs.length - 2].includes("8266889")
     )
   ) {
+    //Create a new timestamp, and start ticket tracking
     console.log("new ticket opened:", ticketId);
     tracking = true;
     startTime = Date.now();
@@ -35,7 +80,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (!currentUserEmail) {
       getEmail(tab.id);
     }
-  } else if (
+  } else if (//Check to see if we navigated away without closing the tab
     tracking &&
     ticketTab === tabId &&
     !tab.url.includes("https://app.hubspot.com/contacts/8266889/ticket/")
@@ -45,7 +90,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     pushTime(ticketId, currentUserEmail);
   }
 
-  if (tracking && tabId === ticketTab) {
+  //Icon logic
+  if (tracking) {
+    //full icon while tracking
     chrome.action.setIcon({
       path: {
         19: "/icons/full-icon_19.png",
@@ -53,6 +100,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       },
     });
   } else {
+    //icon outline all other times
     chrome.action.setIcon({
       path: {
         19: "/icons/empty-icon_19.png",
@@ -62,8 +110,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  if (ticketTab === tabId) {
+//If the tab is closed
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => { //And the tab that was closed was the ticket tab
+  if (ticketTab === tabId) {//create a new ticket entry
     pushTime(ticketId, currentUserEmail);
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       if (tabs.length > 0 && tabs[0].url) {
@@ -77,11 +126,14 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   }
 });
 
+//When the extension icon is clicked
 chrome.action.onClicked.addListener(function (tab) {
   if (tracking) {
+    //If a ticket is currently active
+    //move to the ticket tab
     chrome.windows.update(ticketWindow, { focused: true });
     chrome.tabs.update(ticketTab, { selected: true });
-
+    //and alert the user of current ticket duration
     let timeStamp = Date.now();
     let duration = timeStamp - startTime;
     let mins = Math.floor(duration / 60000);
@@ -117,6 +169,9 @@ chrome.action.onClicked.addListener(function (tab) {
   }
 });
 
+//-------------------Helper Functions-------------------------
+
+//Get email for currently logged in google user
 async function getEmail() {
   await chrome.identity.getProfileUserInfo(
     { accountStatus: "ANY" },
@@ -126,6 +181,7 @@ async function getEmail() {
   );
 }
 
+//Create a new call entry and push to Abodea HS CMS
 function pushTime(ticketId, email) {
   tracking = false;
   let end = Date.now();
@@ -150,6 +206,7 @@ function pushTime(ticketId, email) {
     })
     .then((res) => {
       console.log("successfully tracked time, hubspot response:");
+      //on successful response clear global variables
       startTime = null;
       ticketTab = null;
       ticketWindow = null;

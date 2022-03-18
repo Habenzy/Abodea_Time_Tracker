@@ -1,7 +1,17 @@
 ## ABODEA TIME TRACKER
 ### VERSION 3
 
-03/17/2022 - Version: 3.0
+03/18/2022
+
+* added persistent service worker background process
+
+03/17/2022 - Version: 3.0.1
+
+COMPLETE REBUILD
+
+* consolidated all tracking logic into update handler
+* Removed "active but not focused" blue icon
+* Resolved persistent time issue while service worker is running
 
 03/15/2022 - Version: 2.7
 Updated by Bob Stauss @ Impulse Creative
