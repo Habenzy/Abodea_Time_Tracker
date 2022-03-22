@@ -1,7 +1,7 @@
 ## ABODEA TIME TRACKER
-### VERSION 3
+### VERSION 3.1.0
 
-03/18/2022
+03/18/2022 - Version 3.1.0
 
 * added persistent service worker background process
 

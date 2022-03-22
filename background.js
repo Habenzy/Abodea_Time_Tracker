@@ -78,7 +78,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     ticketWindow = tab.windowId;
     ticketId = tab.url.match(/ticket\/(\d+)\D*$/)[1];
     if (!currentUserEmail) {
-      getEmail(tab.id);
+      getEmail();
     }
   } else if (//Check to see if we navigated away without closing the tab
     tracking &&
@@ -189,7 +189,8 @@ function pushTime(ticketId, email) {
   let durationMins = Math.floor(duration / 60000);
   let durationSecs = Math.floor(duration / 1000) % 60;
   let durationMS = duration - durationMins * 60000 - durationSecs * 1000;
-  console.log("submitting new log:");
+  console.log("--------------SUBMITTING NEW LOG---------------");
+  console.log("user email:", email)
   console.log("start:", startTime);
   console.log("end:", end);
   fetch("https://app.abodea.com/_hcms/api/time/record", {
