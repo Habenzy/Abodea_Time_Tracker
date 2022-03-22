@@ -175,7 +175,7 @@ chrome.action.onClicked.addListener(function (tab) {
 function getEmail(tabId) {
   try {
     let code = `document.querySelector('.user-info-email').innerText`;
-    chrome.tabs.executeScript(tabId, { code }, function (email) {
+    chrome.scripting.executeScript(tabId, { code }, function (email) {
       //alert('code: ' + code + ' email: ' + email);
       currentUserEmail = email[0];
       chrome.storage.local.set({ "email": email }, function () {
