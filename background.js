@@ -78,7 +78,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     ticketWindow = tab.windowId;
     ticketId = tab.url.match(/ticket\/(\d+)\D*$/)[1];
     if (!currentUserEmail) {
-      getEmail();
+      getEmail(tab.id);
     }
   } else if (//Check to see if we navigated away without closing the tab
     tracking &&
@@ -172,13 +172,20 @@ chrome.action.onClicked.addListener(function (tab) {
 //-------------------Helper Functions-------------------------
 
 //Get email for currently logged in google user
-async function getEmail() {
-  await chrome.identity.getProfileUserInfo(
-    { accountStatus: "ANY" },
-    (userInfo) => {
-      currentUserEmail = userInfo.email;
-    }
-  );
+function getEmail(tabId) {
+  try {
+    let code = `document.querySelector('.user-info-email').innerText`;
+    chrome.tabs.executeScript(tabId, { code }, function (email) {
+      //alert('code: ' + code + ' email: ' + email);
+      currentUserEmail = email[0];
+      chrome.storage.local.set({ "email": email }, function () {
+        console.log('email set to: ' + currentUserEmail);
+      });
+      //console.log(`User set to: ${currentUserEmail}`); // not sure why but I was prompted to change the console log code to this by a visual studio code tool tip
+    })
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 //Create a new call entry and push to Abodea HS CMS
