@@ -77,7 +77,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     tab.url &&
     tab.url.includes("https://app.hubspot.com") &&
     tab.url.includes("8266889") &&
-    tab.url.includes("ticket") &&
+    tab.url.includes("ticket/") &&
     !tab.url.includes("?") &&
     !(
       visitedURLs[visitedURLs.length - 2].includes("?") &&
