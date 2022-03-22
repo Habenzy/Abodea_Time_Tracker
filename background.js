@@ -11,8 +11,8 @@ let lifeline;
 
 keepAlive();
 
-chrome.runtime.onConnect.addListener(port => {
-  if (port.name === 'keepAlive') {
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "keepAlive") {
     lifeline = port;
     setTimeout(keepAliveForced, 295e3); // 5 minutes minus 5 seconds
     port.onDisconnect.addListener(keepAliveForced);
@@ -27,11 +27,11 @@ function keepAliveForced() {
 
 async function keepAlive() {
   if (lifeline) return;
-  for (const tab of await chrome.tabs.query({ url: '*://*/*' })) {
+  for (const tab of await chrome.tabs.query({ url: "*://*/*" })) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        function: () => chrome.runtime.connect({ name: 'keepAlive' }),
+        function: () => chrome.runtime.connect({ name: "keepAlive" }),
         // `function` will become `func` in Chrome 93+
       });
       chrome.tabs.onUpdated.removeListener(retryOnTabUpdate);
@@ -50,14 +50,29 @@ async function retryOnTabUpdate(tabId, info, tab) {
 //----------------Event Listeners for tracking---------------
 
 //Any time a tab is opened, or navigated to
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   console.log(
     "ON UPDATED ----------------------------------" + changeInfo.status
   );
   //Track all previously visited URLs
   visitedURLs.push(tab.url);
 
-  if (//Check that there is no currently active ticket, and we are not just changing url within the same ticket
+  if (!currentUserEmail && changeInfo.status == "complete") {
+    console.log("page loaded");
+    chrome.scripting.executeScript({
+      target: { tabId },
+      function: () => {
+        console.log("in scripting tag");
+        let email = document.querySelector(".user-info-email").innerText;
+        console.log(email);
+        //alert('code: ' + code + ' email: ' + email);
+        chrome.storage.sync.set({ email: email });
+      },
+    });
+  }
+
+  if (
+    //Check that there is no currently active ticket, and we are not just changing url within the same ticket
     !startTime &&
     tab.url &&
     tab.url.includes("https://app.hubspot.com") &&
@@ -77,17 +92,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     ticketTab = tabId;
     ticketWindow = tab.windowId;
     ticketId = tab.url.match(/ticket\/(\d+)\D*$/)[1];
-    if (!currentUserEmail) {
-      getEmail(tab.id);
-    }
-  } else if (//Check to see if we navigated away without closing the tab
+  } else if (
+    //Check to see if we navigated away without closing the tab
     tracking &&
     ticketTab === tabId &&
     !tab.url.includes("https://app.hubspot.com/contacts/8266889/ticket/")
   ) {
     console.log("closing ticket:", ticketId);
     tracking = false;
-    pushTime(ticketId, currentUserEmail);
+    pushTime(ticketId);
   }
 
   //Icon logic
@@ -111,9 +124,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 //If the tab is closed
-chrome.tabs.onRemoved.addListener((tabId, removeInfo) => { //And the tab that was closed was the ticket tab
-  if (ticketTab === tabId) {//create a new ticket entry
-    pushTime(ticketId, currentUserEmail);
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  //And the tab that was closed was the ticket tab
+  if (ticketTab === tabId) {
+    //create a new ticket entry
+    pushTime(ticketId);
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       if (tabs.length > 0 && tabs[0].url) {
         console.log("onRemoved test triggered for " + tabs[0].url);
@@ -172,113 +187,108 @@ chrome.action.onClicked.addListener(function (tab) {
 //-------------------Helper Functions-------------------------
 
 //Get email for currently logged in google user
-function getEmail(tabId) {
-  try {
-    let code = `document.querySelector('.user-info-email').innerText`;
-    chrome.scripting.executeScript(tabId, { code }, function (email) {
-      //alert('code: ' + code + ' email: ' + email);
-      currentUserEmail = email[0];
-      chrome.storage.local.set({ "email": email }, function () {
-        console.log('email set to: ' + currentUserEmail);
-      });
-      //console.log(`User set to: ${currentUserEmail}`); // not sure why but I was prompted to change the console log code to this by a visual studio code tool tip
-    })
-  } catch (error) {
-    console.error(error);
-  }
+async function getEmail(tabId) {
+  console.log("in get email");
+
+  //console.log(`User set to: ${currentUserEmail}`); // not sure why but I was prompted to change the console log code to this by a visual studio code tool tip
 }
 
 //Create a new call entry and push to Abodea HS CMS
-function pushTime(ticketId, email) {
-  tracking = false;
-  let end = Date.now();
-  let duration = end - startTime;
-  let durationMins = Math.floor(duration / 60000);
-  let durationSecs = Math.floor(duration / 1000) % 60;
-  let durationMS = duration - durationMins * 60000 - durationSecs * 1000;
-  console.log("--------------SUBMITTING NEW LOG---------------");
-  console.log("user email:", email)
-  console.log("start:", startTime);
-  console.log("end:", end);
-  fetch("https://app.abodea.com/_hcms/api/time/record", {
-    method: "POST",
-    headers: new Headers({ "content-type": "application/json" }),
-    body: JSON.stringify({
-      ticketId: ticketId,
-      email: email,
-      duration: duration,
-    }),
-  })
-    .then(function (response) {
-      return response.json();
+async function pushTime(ticketId) {
+
+  await chrome.storage.sync.get((res) => {
+    let email = res.email;
+
+    tracking = false;
+    let end = Date.now();
+    let duration = end - startTime;
+    let durationMins = Math.floor(duration / 60000);
+    let durationSecs = Math.floor(duration / 1000) % 60;
+    let durationMS = duration - durationMins * 60000 - durationSecs * 1000;
+    console.log("--------------SUBMITTING NEW LOG---------------");
+    console.log("user email:", email);
+    console.log("start:", startTime);
+    console.log("end:", end);
+    fetch("https://app.abodea.com/_hcms/api/time/record", {
+      method: "POST",
+      headers: new Headers({ "content-type": "application/json" }),
+      body: JSON.stringify({
+        ticketId: ticketId,
+        email: email,
+        duration: duration,
+      }),
     })
-    .then((res) => {
-      console.log("successfully tracked time, hubspot response:");
-      //on successful response clear global variables
-      startTime = null;
-      ticketTab = null;
-      ticketWindow = null;
-      ticketId = null;
-      currentUserEmail = null;
-      console.log(res);
-    })
-    .catch(
-      (error) =>
-        function () {
-          console.log(error);
-          chrome.notifications.create(
-            "end-" + tabId,
-            {
-              iconUrl: "/icons/full-icon_128.png",
-              type: "basic",
-              //contextMessage: 'Context message',
-              message:
-                "UNSUCCESSFULLY LOGGED TIME FOR " +
-                email +
-                "Expected duration: " +
-                durationMins +
-                " minutes and " +
-                durationSecs +
-                " seconds for ticket #" +
-                ticketId,
-              title: "ERROR LOGGING TIME",
-            }
-            //show error message
-          );
-        }
+      .then(function (response) {
+        return response.json();
+      })
+      .then((res) => {
+        console.log("successfully tracked time, hubspot response:");
+        //on successful response clear global variables
+        startTime = null;
+        ticketTab = null;
+        ticketWindow = null;
+        ticketId = null;
+        currentUserEmail = null;
+        console.log(res);
+      })
+      .catch(
+        (error) =>
+          function () {
+            console.log(error);
+            chrome.notifications.create(
+              "end-" + tabId,
+              {
+                iconUrl: "/icons/full-icon_128.png",
+                type: "basic",
+                //contextMessage: 'Context message',
+                message:
+                  "UNSUCCESSFULLY LOGGED TIME FOR " +
+                  email +
+                  "Expected duration: " +
+                  durationMins +
+                  " minutes and " +
+                  durationSecs +
+                  " seconds for ticket #" +
+                  ticketId,
+                title: "ERROR LOGGING TIME",
+              }
+              //show error message
+            );
+          }
+      );
+
+    console.log("duration 2.5: " + duration);
+    console.log(
+      email +
+        " tracked time on ticket# " +
+        ticketId +
+        " |  DURATION | minutes: " +
+        durationMins +
+        " seconds: " +
+        durationSecs +
+        " milliseconds: " +
+        durationMS
     );
 
-  console.log("duration 2.5: " + duration);
-  console.log(
-    email +
-      " tracked time on ticket# " +
-      ticketId +
-      " |  DURATION | minutes: " +
-      durationMins +
-      " seconds: " +
-      durationSecs +
-      " milliseconds: " +
-      durationMS
-  );
-
-  // Create Chrome notification
-  chrome.notifications.create(
-    "end",
-    {
-      iconUrl: "/icons/full-icon_128.png",
-      type: "basic",
-      //contextMessage: 'Context message',
-      message:
-        "Successfully tracked " +
-        durationMins +
-        " minutes and " +
-        durationSecs +
-        " seconds for ticket #" +
-        ticketId,
-      title: "Time Submitted",
-    },
-    function (context) {
-      console.log("Last error:", chrome.runtime.lastError);
-    }
-  );
+    // Create Chrome notification
+    chrome.notifications.create(
+      "end",
+      {
+        iconUrl: "/icons/full-icon_128.png",
+        type: "basic",
+        //contextMessage: 'Context message',
+        message:
+          "Successfully tracked " +
+          durationMins +
+          " minutes and " +
+          durationSecs +
+          " seconds for ticket #" +
+          ticketId,
+        title: "Time Submitted",
+      },
+      function (context) {
+        console.log("Last error:", chrome.runtime.lastError);
+      }
+    );
+  });
 }
