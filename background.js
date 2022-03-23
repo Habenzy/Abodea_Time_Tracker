@@ -101,6 +101,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     console.log("closing ticket:", ticketId);
     tracking = false;
     pushTime(ticketId);
+    chrome.action.setIcon({
+      path: {
+        19: "/icons/empty-icon_19.png",
+        48: "/icons/empty-icon_48.png",
+      },
+    });
   }
 
   //Icon logic
@@ -128,6 +134,13 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   //And the tab that was closed was the ticket tab
   if (ticketTab === tabId) {
     //create a new ticket entry
+    tracking = false;
+    chrome.action.setIcon({
+      path: {
+        19: "/icons/empty-icon_19.png",
+        48: "/icons/empty-icon_48.png",
+      },
+    });
     pushTime(ticketId);
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       if (tabs.length > 0 && tabs[0].url) {
@@ -198,8 +211,6 @@ async function pushTime(ticketId) {
 
   await chrome.storage.sync.get((res) => {
     let email = res.email;
-
-    tracking = false;
     let end = Date.now();
     let duration = end - startTime;
     let durationMins = Math.floor(duration / 60000);
@@ -229,6 +240,7 @@ async function pushTime(ticketId) {
         ticketWindow = null;
         ticketId = null;
         currentUserEmail = null;
+        tracking = false
         console.log(res);
       })
       .catch(
