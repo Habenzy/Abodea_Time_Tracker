@@ -1,5 +1,14 @@
 ## ABODEA TIME TRACKER
-### VERSION 3.1.0
+### VERSION 3.1.1
+Updated by Bob Stauss @ Impulse Creative
+
+03/18/2022 - Version 3.1.1
+
+* Re-added missing features:
+  * Ticket refocus on tab moved functionality
+  * Fixed tracking notification logo change
+  
+* Now draws email from page rather than Google auth per client needs
 
 03/18/2022 - Version 3.1.0
 
@@ -14,7 +23,7 @@ COMPLETE REBUILD
 * Resolved persistent time issue while service worker is running
 
 03/15/2022 - Version: 2.7
-Updated by Bob Stauss @ Impulse Creative
+
 
 CHANGE LOG:
 * moved README to dedicated file
