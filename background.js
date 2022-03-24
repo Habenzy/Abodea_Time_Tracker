@@ -197,6 +197,21 @@ chrome.action.onClicked.addListener(function (tab) {
   }
 });
 
+// Reset ticketWindow when tab is moved to a new window
+
+chrome.tabs.onAttached.addListener((tabId, props) => {
+  console.log(
+    "Previously tracked tab " +
+      ticketTab +
+      "| active tab id: " +
+      ticketWindow
+  );
+  if (tracking && tabId === ticketTab) {
+    ticketTab = tabId;
+    ticketWindow = props.newWindowId;
+  }
+});
+
 //-------------------Helper Functions-------------------------
 
 //Get email for currently logged in google user
