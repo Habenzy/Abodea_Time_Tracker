@@ -78,9 +78,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     tab.url.includes("https://app.hubspot.com") &&
     tab.url.includes("8266889") &&
     tab.url.includes("ticket/") &&
-    !tab.url.includes("?") &&
+    !tab.url.includes("/?") &&
     !(
-      visitedURLs[visitedURLs.length - 2].includes("?") &&
+      visitedURLs[visitedURLs.length - 2].includes("/?") &&
       visitedURLs[visitedURLs.length - 2].includes("https://app.hubspot.com") &&
       visitedURLs[visitedURLs.length - 2].includes("8266889")
     )
@@ -183,7 +183,7 @@ chrome.action.onClicked.addListener(function (tab) {
         title: "Time Tracked",
       },
       function (context) {
-        console.log("Last error:", chrome.runtime.lastError);
+        chrome.runtime.lastError ? console.log("Last error:", chrome.runtime.lastError) :  [];
       }
     );
   } else {
@@ -314,7 +314,7 @@ async function pushTime(ticketId) {
         title: "Time Submitted",
       },
       function (context) {
-        console.log("Last error:", chrome.runtime.lastError);
+        chrome.runtime.lastError ? console.log("Last error:", chrome.runtime.lastError) :  [];
       }
     );
   });
