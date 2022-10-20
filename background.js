@@ -183,7 +183,7 @@ chrome.action.onClicked.addListener(function (tab) {
         title: "Time Tracked",
       },
       function (context) {
-        chrome.runtime.lastError ? console.log("Last error:", chrome.runtime.lastError) :  [];
+        return chrome.runtime.lastError ? "Last error:" + chrome.runtime.lastError :  [];
       }
     );
   } else {
@@ -314,7 +314,7 @@ async function pushTime(ticketId) {
         title: "Time Submitted",
       },
       function (context) {
-        chrome.runtime.lastError ? console.log("Last error:", chrome.runtime.lastError) :  [];
+        return chrome.runtime.lastError ? "Last error:" + chrome.runtime.lastError :  [];
       }
     );
   });
